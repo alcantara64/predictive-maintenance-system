@@ -1,6 +1,5 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
-from pydantic import BaseModel
-from datetime import datetime
+from fastapi import Depends, FastAPI, HTTPException, BackgroundTasks
+from fastapi.security import OAuth2PasswordRequestForm
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
@@ -10,8 +9,13 @@ import asyncio
 from confluent_kafka import Producer, Consumer, KafkaError
 import json
 import joblib
+# from bson import ObjectId
+from contextlib import asynccontextmanager
+from config import COLLECTIONS, DATABASE_NAME, MONGO_URI
+from db import database_handler
+from model.pydantic import MaintenanceRequest, PredictionRequest, SensorData, UserRegistration
+from utils.authentication import AuthHandler
 
-app = FastAPI()
 
 # Kafka configuration
 KAFKA_BOOTSTRAP_SERVERS = "localhost:9092"
@@ -21,25 +25,20 @@ KAFKA_TOPIC = "sensor_data_topic"
 sensor_data = []
 maintenance_schedule = []
 
+
+
+auth_handler = AuthHandler()
+#database intialiazation
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await database_handler.connect()
+    yield
+    await database_handler.close()
+
+app = FastAPI(lifespan=lifespan)
+
 # loading the trained model
 model = joblib.load('best_predictive_maintenance_model.pkl')
-
-# Pydantic models for request/response validation
-class SensorData(BaseModel):
-    equipment_id: str
-    temperature: float
-    vibration: float
-    pressure: float
-    timestamp: datetime
-
-class MaintenanceRequest(BaseModel):
-    equipment_id: str
-    maintenance_type: str
-    scheduled_time: datetime
-
-class PredictionRequest(BaseModel):
-    equipment_id: str
-    sensor_data: SensorData
 
 # Kafka Producer
 def kafka_producer():
@@ -58,6 +57,31 @@ def kafka_consumer():
     }
     return Consumer(conf)
 
+# User registration endpoint
+@app.post("/register")
+def register(user: UserRegistration):
+    # Check if the user already exists
+    existing_user = database_handler.find_documents(collection=COLLECTIONS.get('user'),query={"username":user.username})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Username already registered")
+
+    # Hash the password and insert the user
+    hashed_password = auth_handler.hash_password(user.password)
+    new_user = {**dict(user), "password": hashed_password}
+    database_handler.insert_document(collection=COLLECTIONS.get('user'),document=new_user)
+    return {"message": "User registered successfully"}
+
+@app.post("/token")
+def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    # Find the user in the database
+    user = database_handler.find_one_document(collection=COLLECTIONS.get('user'),query={"username":form_data.username})
+    if not user or not auth_handler.verify_password(form_data.password, user["password"]):
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
+
+    # Generate a JWT token
+    access_token = auth_handler.create_access_token(data={"sub": user["username"]})
+    return {"access_token": access_token, "token_type": "bearer"}
+
 # Simulated notification system
 async def send_notification(message: str):
     print(f"Notification sent: {message}")
@@ -67,10 +91,11 @@ async def send_notification(message: str):
 @app.post("/ingest-sensor-data")
 async def ingest_sensor_data(data: SensorData, background_tasks: BackgroundTasks):
     # Send data to Kafka topic
-    producer = kafka_producer()
-    producer.produce(KAFKA_TOPIC, key=data.equipment_id, value=data.json())
-    producer.flush()
-    background_tasks.add_task(process_kafka_messages)
+    # producer = kafka_producer()
+    # producer.produce(KAFKA_TOPIC, key=data.equipment_id, value=data.json())
+    # producer.flush()
+    # background_tasks.add_task(process_kafka_messages)
+    database_handler.insert_document(data.dict(), 'sensor')
     return {"message": "Sensor data sent to Kafka topic"}
 
 # Process Kafka messages
@@ -91,7 +116,10 @@ def process_kafka_messages():
         
         # Decode the message
         data = json.loads(msg.value())
+        print(f" ingested data {data}")
+        # MongoDBHandler(connection_string=MONGO_URI,database_name=DATABASE_NAME).insert_document(data)
         sensor_data.append(data)
+        print(data)
         print(f"Processed sensor data: {data}")
 
 # Data processing and cleaning
@@ -161,7 +189,7 @@ async def get_maintenance_schedule():
 
 # Simulate real-time monitoring
 @app.get("/monitor-equipment")
-async def monitor_equipment():
+async def monitor_equipment(current_user: dict = Depends(auth_handler.get_current_user)):
     if not sensor_data:
         raise HTTPException(status_code=400, detail="No sensor data available")
     
