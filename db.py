@@ -2,6 +2,7 @@ from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure, OperationFailure
 from fastapi.encoders import jsonable_encoder
 from bson import ObjectId
+from datetime import datetime
 
 from config import DATABASE_NAME, MONGO_URI
 
@@ -42,6 +43,9 @@ class MongoDBHandler:
         if  self.db == None:
             raise ValueError("Collection not initialized. Call connect() first.")
         try:
+            now = datetime.utcnow()
+            document['created_date'] = now
+            document['last_updated'] = now
             result = self.db[collection].insert_one(document)
             print(f"Inserted document with ID: {result.inserted_id}")
             return result.inserted_id
@@ -80,6 +84,30 @@ class MongoDBHandler:
         except OperationFailure as e:
             print(f"Failed to find documents: {e}")
 
+
+    def update_document(self, collection: str, query: dict, update_data: dict):
+      """
+      Updates a document in the collection, setting the last_updated field.
+
+      :param collection: The name of the collection.
+      :param query: A dictionary specifying which document(s) to update.
+      :param update_data: A dictionary containing the update operations (e.g., {"$set": {"field": "new_value"}}).
+      :return: The result of the update operation.
+      """
+      if self.db is None:
+          raise ValueError("Collection not initialized. Call connect() first.")
+
+      try:
+          now = datetime.utcnow()
+          update_data["$set"] = {**update_data.get("$set", {}), "last_updated": now} 
+
+          result = self.db[collection].update_one(query, update_data)
+          print(f"Updated {result.modified_count} document(s) in {collection}.")
+          return result
+      except OperationFailure as e:
+          print(f"Failed to update document: {e}")
+          return None #or raise the exception.
+      
     async def close(self):
         """
         Close the MongoDB connection.
