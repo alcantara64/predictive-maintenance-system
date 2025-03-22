@@ -21,6 +21,18 @@ services:
     depends_on:
       - zookeeper
 
+  mongodb:
+    image: mongo:latest
+    container_name: my-mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+
   app:
     build: .
     container_name: predictive-maintenance-app
@@ -30,3 +42,7 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
       - kafka
+      - mongodb 
+
+volumes:
+  mongodb_data:

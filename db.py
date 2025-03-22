@@ -1,5 +1,7 @@
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure, OperationFailure
+from fastapi.encoders import jsonable_encoder
+from bson import ObjectId
 
 from config import DATABASE_NAME, MONGO_URI
 
@@ -59,7 +61,7 @@ class MongoDBHandler:
                 query = {}
             documents = list(self.db[collection].find(query))
             print(f"Found {len(documents)} documents.")
-            return documents
+            return jsonable_encoder(documents, custom_encoder={ObjectId: str})
         except OperationFailure as e:
             print(f"Failed to find documents: {e}")
     
@@ -87,6 +89,14 @@ class MongoDBHandler:
             print("MongoDB connection closed.")
         else:
             print("No active MongoDB connection to close.")
+    
+    def get_document_count(self, collection:str, query: dict) -> int:
+    
+        try:
+            count = self.db[collection].count_documents({})
+            return count
+        except OperationFailure as e:
+            print(f"Failed to find documents: {e}")
             
 
 

@@ -8,20 +8,28 @@ class UserRegistration(BaseModel):
     role: str
     first_name:str
     last_name:str
-    last_login:str
+    last_login:datetime | None 
     
 
 class UserLogin(BaseModel):
     username: str
     password: str
-    last_login: None | str
     
 class SensorData(BaseModel):
     equipment_id: str
-    temperature: float
-    vibration: float
-    pressure: float
-    timestamp: datetime
+    type: str
+    air_temperature:float
+    process_temperature:float
+    rotational_speed:int
+    torque:float
+    tool_wear:int
+    machine_failure:int
+    twf:int
+    hdf:int
+    pwf:int
+    osf:int
+    rnf:int
+
 
 class MaintenanceRequest(BaseModel):
     equipment_id: str
@@ -30,4 +38,36 @@ class MaintenanceRequest(BaseModel):
 
 class PredictionRequest(BaseModel):
     equipment_id: str
-    sensor_data: SensorData
+    
+class CreateSensorDataRequest(BaseModel):
+    equipment_id: str
+    type: str
+    air_temperature:float
+    process_temperature:float
+    rotational_speed:int
+    torque:float
+    tool_wear:int
+    machine_failure:int
+    twf:int
+    hdf:int
+    pwf:int
+    osf:int
+    rnf:int
+
+class CreateEquipmentRequest(BaseModel):
+     
+    type: str
+    name:str
+    manufacturer:str
+    model_number: str
+    serial_number: str
+    status:bool
+    location:str
+    installation_date: datetime
+    purchase_date: datetime
+    cost:int
+    date: datetime
+    last_maintenance_date: datetime
+
+    
+    
