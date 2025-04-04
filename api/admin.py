@@ -7,7 +7,7 @@ from bson.objectid import ObjectId
 maintenance_router = APIRouter()
 maintenance_schedule = []
 
-@maintenance_router.post("/schedule")
+@maintenance_router.post("/users")
 async def schedule_maintenance(request: MaintenanceRequest):
    
     try:

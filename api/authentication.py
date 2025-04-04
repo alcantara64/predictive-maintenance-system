@@ -9,9 +9,12 @@ auth_handler = AuthHandler()
 
 @auth_router.post("/register")
 def register(user: UserRegistration):
-    existing_user = database_handler.find_documents(collection=COLLECTIONS.get('user'), query={"email": user.username})
+    existing_user = database_handler.find_documents(collection=COLLECTIONS.get('user'), query={"$or": [
+        {"username": user.username},
+        {"email": user.email}
+    ]})
     if existing_user:
-        raise HTTPException(status_code=400, detail="Username already registered")
+        raise HTTPException(status_code=400, detail="Username or email already taken")
 
     hashed_password = auth_handler.hash_password(user.password)
     new_user = {**dict(user), "password": hashed_password}
@@ -24,5 +27,5 @@ def login(form_data: UserLogin):
     if not user or not auth_handler.verify_password(form_data.password, user["password"]):
         raise HTTPException(status_code=400, detail="Incorrect username or password")
 
-    access_token = auth_handler.create_access_token(data={"sub": user["username"]})
+    access_token = auth_handler.create_access_token(data={"sub": str(user["_id"])})
     return {"access_token": access_token, "token_type": "bearer"}

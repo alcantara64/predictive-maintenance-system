@@ -14,7 +14,7 @@ from api.users import user_router
 
 origins = [
     "http://localhost:3000", 
-    "*",  # Allow all (use with caution)
+    "*", 
 ]
 
 # Database initialization
