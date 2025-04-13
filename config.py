@@ -18,5 +18,5 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES",30))
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # Kafka configuration
-KAFKA_BOOTSTRAP_SERVERS = "kafka:29092"
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS","kafka:29092") 
 KAFKA_TOPIC = "sensor_data_topic"
