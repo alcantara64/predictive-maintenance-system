@@ -42,7 +42,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      KAFKA_BOOTSTRAP_SERVERS: 172.20.0.4:29092
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     depends_on:
       - kafka
       - mongodb
@@ -52,7 +52,7 @@ services:
     container_name: prediction-worker
     command: ["python", "prediction_worker.py"]
     environment:
-      KAFKA_BOOTSTRAP_SERVERS: 172.20.0.4:29092
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     depends_on:
       - kafka
     restart: on-failure
